@@ -32,11 +32,23 @@
 @synthesize manager;
 @synthesize peripherals;
 
+bool initDone = false;
+
 - (void)pluginInitialize {
     NSLog(@"Cordova BLE Central Plugin");
     NSLog(@"(c)2014-2016 Don Coleman");
+    NSLog(@"Onload Mods Enabled");
 
     [super pluginInitialize];
+}
+
+- (void)initBLE {
+    if(initDone){
+        return;
+    }
+    initDone = true;
+
+    NSLog(@"Cordova BLE Central Plugin Initting");
 
     NSMutableDictionary *options = [[NSMutableDictionary alloc] init];
     options[CBCentralManagerOptionShowPowerAlertKey] = @NO;
@@ -340,6 +352,8 @@
 }
 
 - (void)isEnabled:(CDVInvokedUrlCommand*)command {
+    [self initBLE];
+
     CDVPluginResult *pluginResult = nil;
     int bluetoothState = [manager state];
 
@@ -354,6 +368,8 @@
 }
 
 - (void)scan:(CDVInvokedUrlCommand*)command {
+    [self initBLE];
+
     NSLog(@"scan");
     if ([manager state] != CBManagerStatePoweredOn) {
         NSString *error = @"Bluetooth is disabled";
@@ -398,6 +414,8 @@
 }
 
 - (void)startScanWithOptions:(CDVInvokedUrlCommand*)command {
+    [self initBLE];
+
     NSLog(@"startScanWithOptions");
     if ([manager state] != CBManagerStatePoweredOn) {
         NSString *error = @"Bluetooth is disabled";
@@ -424,6 +442,8 @@
 }
 
 - (void)stopScan:(CDVInvokedUrlCommand*)command {
+    [self initBLE];
+
     NSLog(@"stopScan");
 
     if ([manager state] == CBManagerStatePoweredOn) {
