@@ -1,3 +1,29 @@
+= 1.6.1 =
+No changes - republish only
+
+= 1.6.0 =
+Android: Fix enable bluetooth permissions on Android 12+ #940 #941 Thanks samvimes01
+Android: Clear up time-based stopScan when new scan is started #902
+Android: Report if Bluetooth is disabled when scanning/connecting #826
+Android: Restore refreshDeviceCache to 1.3.X functionality (related to #936)
+Android: Prevent various null ref exceptions (#936, #901 #871, #773, #698)
+Android: Document advanced android scan options
+Android: Improve Android 11 background permissions request ordering
+iOS: Make connect failure errors on iOS more concise #933 Thanks doug-a-brunner
+
+= 1.5.2 =
+Android: Exclude ACCESS_BACKGROUND_LOCATION from plugin.xml to avoid complications with Capacitor #928
+
+= 1.5.1 =
+Android: Request BLUETOOTH_CONNECT on Android 12+ when device name is requested #924
+Android: Avoid Null reference exceptions in service discovery callbacks
+Documentation & type fixes
+
+= 1.5.0 =
+Android: Add support for target SDK version 31 (Android 12) #923 #879 #875 Thanks LDLCLid3
+Add L2CAP support (minimum iOS 11 & Android 10 required) for connection-oriented Bluetooth streams #812
+Add ble.withPromises.startNotification variant to indicate when notifications are successfully subscribed #903 #95
+
 = 1.4.4 =
 Browser: Add support via navigator.Bluetooth #907 #231 Thanks joeferner
 iOS: More explicitly handle edge cases when starting/stopping notifications on iOS #577 #893

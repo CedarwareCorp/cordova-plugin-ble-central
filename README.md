@@ -1,5 +1,7 @@
 # Bluetooth Low Energy (BLE) Central Plugin for Apache Cordova
 
+[![npm version](https://img.shields.io/npm/v/cordova-plugin-ble-central.svg?style=flat)](https://www.npmjs.com/package/cordova-plugin-ble-central)
+
 This plugin enables communication between a phone and Bluetooth Low Energy (BLE) peripherals.
 
 The plugin provides a simple [JavaScript API](#api) for iOS and Android.
@@ -9,6 +11,7 @@ The plugin provides a simple [JavaScript API](#api) for iOS and Android.
 -   Read the value of a characteristic
 -   Write new value to a characteristic
 -   Get notified when characteristic's value changes
+-   Transfer data via L2CAP channels
 
 Advertising information is returned when scanning for peripherals.
 Service, characteristic, and property info is returned when connecting to a peripheral.
@@ -24,7 +27,7 @@ See the [examples](https://github.com/don/cordova-plugin-ble-central/tree/master
 ## Supported Platforms
 
 -   iOS
--   Android (4.3 or greater)
+-   Android (likely supports 6+, but 8.1 or greater recommended)
 -   Browser (where navigator.bluetooth is supported)
 
 # Installing
@@ -33,22 +36,11 @@ See the [examples](https://github.com/don/cordova-plugin-ble-central/tree/master
 
     $ cordova plugin add cordova-plugin-ble-central
 
-### PhoneGap
+It's recommended to always use the latest cordova and cordova platform packages in order to enusre correct function. This plugin generally best supports the following platforms and version ranges:
 
-    $ phonegap plugin add cordova-plugin-ble-central
-
-### PhoneGap Build
-
-Edit config.xml to install the plugin for [PhoneGap Build](http://build.phonegap.com).
-
-    <gap:plugin name="cordova-plugin-ble-central" source="npm" />
-    <preference name="phonegap-version" value="cli-6.1.0" />
-
-### PhoneGap Developer App
-
-This plugin is included in iOS and Android versions of the [PhoneGap Developer App](http://app.phonegap.com/).
-
-Note that this plugin's id changed from `com.megster.cordova.ble` to `cordova-plugin-ble-central` as part of the migration from the [Cordova plugin repo](http://plugins.cordova.io/) to [npm](https://www.npmjs.com/).
+| cordova | cordova-ios | cordova-android | cordova-browser |
+| ------- | ----------- | --------------- | --------------- |
+| 10+     | 6.2.0+      | 10.0+           | not tested      |
 
 ### iOS
 
@@ -70,9 +62,26 @@ For more information about background operation, see [Background Scanning and No
 
 ### Android
 
-If your app targets Android 10 (API level 29) or higher, you have also the option of requesting the ACCESS_BACKGROUND_LOCATION permission. If your app has a feature that requires it, set `ACCESS_BACKGROUND_LOCATION ` to true when installing.
+If you are having Android permissions conflicts with other plugins, try using the `slim` variant of the plugin instead with `cordova plugin add cordova-plugin-ble-central@slim`. This variant excludes all Android permissions, leaving it to the developer to ensure the right entries are added manually to the `AndroidManifest.xml` (see below for an example).
+
+To include the default set of permissions the plugin installs on Android SDK v31+, add the following snippet in your `config.xml` file, in the `<platform name="android">` section:
+
+```
+    <config-file target="AndroidManifest.xml" parent="/manifest">
+        <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />
+        <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+        <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+        <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+        <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+        <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    </config-file>
+```
+
+If your app targets Android 10 (API level 29) or higher, you may need the ACCESS_BACKGROUND_LOCATION permission on Android 10 & Android 11 in order for scanning to function when your app is not visible. To enable this permission and feature, set `ACCESS_BACKGROUND_LOCATION ` to true when installing:
 
     --variable ACCESS_BACKGROUND_LOCATION=true
+
+For the best understanding about which permissions are needed for which combinations of target SDK version & OS version, see [Android Bluetooth permissions](https://developer.android.com/guide/topics/connectivity/bluetooth/permissions)
 
 # API
 
@@ -107,7 +116,12 @@ If your app targets Android 10 (API level 29) or higher, you have also the optio
 -   [ble.connectedPeripheralsWithServices](#connectedperipheralswithservices)
 -   [ble.peripheralsWithIdentifiers](#peripheralswithidentifiers)
 -   [ble.restoredBluetoothState](#restoredbluetoothstate)
+-   [ble.list](#list)
 -   [ble.bondedDevices](#bondeddevices)
+-   [ble.l2cap.open](#l2capopen)
+-   [ble.l2cap.close](#l2capclose)
+-   [ble.l2cap.receiveData](#l2capreceivedata)
+-   [ble.l2cap.write](#l2capwrite)
 
 ## scan
 
@@ -247,6 +261,8 @@ See the [location permission notes](#location-permission-notes) above for inform
 Stop scanning for BLE peripherals.
 
     ble.stopScan(success, failure);
+    // Or using await with promises
+    await ble.withPromises.stopScan()
 
 ### Description
 
@@ -283,6 +299,8 @@ Function `stopScan` stops scanning for BLE devices.
 Set device pin
 
     ble.setPin(pin, [success], [failure]);
+    // Or using await with promises
+    await ble.withPromises.setPin(pin)
 
 ### Description
 
@@ -347,6 +365,8 @@ See notes about [scanning before connecting](#scanning-before-connecting)
 Disconnect.
 
     ble.disconnect(device_id, [success], [failure]);
+    // Or using await with promises
+    await ble.withPromises.disconnect(device_id)
 
 ### Description
 
@@ -397,6 +417,8 @@ The resulting MTU size is sent to the success callback. The requested and result
 requestConnectionPriority
 
     ble.requestConnectionPriority(device_id, priority, [success], [failure]);
+    // Or using await with promises
+    await ble.withPromises.requestConnectionPriority(device_id, priority)
 
 ### Description
 
@@ -404,9 +426,9 @@ When Connecting to a peripheral android can request for the connection priority 
 
 Connection priority can be one of:
 
--   `0` - [CONNECTION_PRIORITY_BALANCED](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_BALANCED)
--   `1` - [CONNECTION_PRIORITY_HIGH](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_HIGH)
--   `2` - [CONNECTION_PRIORITY_LOW_POWER](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_LOW_POWER)
+-   `"balanced"` - [CONNECTION_PRIORITY_BALANCED](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_BALANCED)
+-   `"high"` - [CONNECTION_PRIORITY_HIGH](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_HIGH)
+-   `"low"` - [CONNECTION_PRIORITY_LOW_POWER](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_LOW_POWER)
 
 ### Supported Platforms
 
@@ -415,13 +437,13 @@ Connection priority can be one of:
 ### Parameters
 
 -   **device_id**: UUID or MAC address of the peripheral
--   **priority**: high or balanced or low
+-   **priority**: `"high"`, `"balanced"` or `"low"`
 -   **success**: Success callback function that is invoked when the connection is successful. [optional]
 -   **failure**: Error callback function, invoked when error occurs. [optional]
 
 ### Quick Example
 
-    ble.requestConnectionPriority(device_id, 0,
+    ble.requestConnectionPriority(device_id, "high",
         function() {
             alert("success");
         },
@@ -460,6 +482,8 @@ _NOTE_ Since this uses an undocumented API it's not guaranteed to work.
 Reads the value of a characteristic.
 
     ble.read(device_id, service_uuid, characteristic_uuid, success, failure);
+    // Or using await with promises
+    const data = await ble.withPromises.read(device_id, service_uuid, characteristic_uuid)
 
 ### Description
 
@@ -495,6 +519,8 @@ Retrieves an [ArrayBuffer](#typed-arrays) when reading data.
 Writes data to a characteristic.
 
     ble.write(device_id, service_uuid, characteristic_uuid, data, success, failure);
+    // Or using await with promises
+    await ble.withPromises.write(device_id, service_uuid, characteristic_uuid, data)
 
 ### Description
 
@@ -535,6 +561,8 @@ Use an [ArrayBuffer](#typed-arrays) when writing data.
 Writes data to a characteristic without confirmation from the peripheral.
 
     ble.writeWithoutResponse(device_id, service_uuid, characteristic_uuid, data, success, failure);
+    // Or using await with promises
+    await ble.withPromises.writeWithoutResponse(device_id, service_uuid, characteristic_uuid, data)
 
 ### Description
 
@@ -554,6 +582,9 @@ Function `writeWithoutResponse` writes data to a characteristic without a respon
 Register to be notified when the value of a characteristic changes.
 
     ble.startNotification(device_id, service_uuid, characteristic_uuid, success, failure);
+    // Or using await with promises
+    // Note, initial promise resolves or rejects depending on whether the subscribe was successful
+    await ble.withPromises.startNotification(device_id, success, failure)
 
 ### Description
 
@@ -586,6 +617,8 @@ See [Background Notifications on iOS](#background-notifications-on-ios)
 Stop being notified when the value of a characteristic changes.
 
     ble.stopNotification(device_id, service_uuid, characteristic_uuid, success, failure);
+    // Or using await with promises
+    await ble.withPromises.stopNotification(device_id)
 
 ### Description
 
@@ -604,6 +637,8 @@ Function `stopNotification` stops a previously registered notification callback.
 Reports the connection status.
 
     ble.isConnected(device_id, success, failure);
+    // Or using await with promises
+    await ble.withPromises.isConnected(device_id)
 
 ### Description
 
@@ -690,6 +725,9 @@ Function `isLocationEnabled` calls the success callback when location services a
 Registers to be notified when Location service state changes on the device.
 
     ble.startLocationStateNotifications(success, failure);
+    // Or using await with promises
+    // Note, initial promise resolves or rejects depending on whether the subscribe was successful
+    await ble.withPromises.startLocationStateNotifications(success, failure)
 
 ### Description
 
@@ -717,6 +755,8 @@ Function `startLocationStateNotifications` calls the success callback when the L
 Stops state notifications.
 
     ble.stopLocationStateNotifications(success, failure);
+    // Or using await with promises
+    await ble.withPromises.stopLocationStateNotifications()
 
 ### Description
 
@@ -731,6 +771,9 @@ Function `stopLocationStateNotifications` calls the success callback when Locati
 Registers to be notified when Bluetooth state changes on the device.
 
     ble.startStateNotifications(success, failure);
+    // Or using await with promises
+    // Note, initial promise resolves or rejects depending on whether the subscribe was successful
+    await ble.withPromises.startStateNotifications(success, failure)
 
 ### Description
 
@@ -770,6 +813,8 @@ Function `startStateNotifications` calls the success callback when the Bluetooth
 Stops state notifications.
 
     ble.stopStateNotifications(success, failure);
+    // Or using await with promises
+    await ble.withPromises.stopStateNotifications()
 
 ### Description
 
@@ -785,6 +830,8 @@ Function `stopStateNotifications` calls the success callback when Bluetooth stat
 Show the Bluetooth settings on the device.
 
     ble.showBluetoothSettings(success, failure);
+    // Or using await with promises
+    await ble.withPromises.showBluetoothSettings()
 
 ### Description
 
@@ -810,6 +857,8 @@ Function `showBluetoothSettings` opens the Bluetooth settings for the operating 
 Enable Bluetooth on the device.
 
     ble.enable(success, failure);
+    // Or using await with promises
+    ble.withPromises.enable();
 
 ### Description
 
@@ -917,6 +966,7 @@ Sends a list of known peripherals by their identifiers to the success callback. 
 Retrieve the CBManager restoration state (if applicable)
 
     ble.restoredBluetoothState(success, failure);
+    // Or using await with promises
     await ble.withPromises.restoredBluetoothState();
 
 ### Description
@@ -936,11 +986,13 @@ If the application has no state restored, this will return an empty object.
 -   **success**: Success callback function, invoked with the restored Bluetooth state (if any)
 -   **failure**: Error callback function
 
-## bondedDevices
+## list
 
-Find the bonded devices.
+Lists all peripherals discovered by the plugin due to scanning or connecting since app launch.
 
-    ble.bondedDevices(success, failure);
+    ble.list(success, failure);
+    // Or using await with promises
+    await ble.withPromises.list();
 
 ### Description
 
@@ -954,6 +1006,129 @@ Sends a list of bonded low energy peripherals to the success callback.
 
 -   **success**: Success callback function, invoked with a list of peripheral objects
 -   **failure**: Error callback function
+
+## bondedDevices
+
+Find the bonded devices.
+
+    ble.bondedDevices(success, failure);
+    // Or using await with promises
+    await ble.withPromises.bondedDevices();
+
+### Description
+
+Sends a list of bonded low energy peripherals to the success callback.
+
+### Supported Platforms
+
+-   Android
+
+### Parameters
+
+-   **success**: Success callback function, invoked with a list of peripheral objects
+-   **failure**: Error callback function
+
+## l2cap.open
+
+Open an L2CAP channel with a connected peripheral. The PSM is assigned by the peripheral, or possibly defined by the Bluetooth standard.
+
+    ble.l2cap.open(device_id, psm, connectCallback, disconnectCallback);
+    // Or using await with promises
+    await ble.withPromises.l2cap.open(device_id, psm, disconnectCallback);
+
+Android supports additional arguments in the psm flag to select whether the L2CAP channel is insecure or secure (iOS does this automatically):
+
+    ble.l2cap.open(device_id, { psm: psm, secureChannel: true }, connectCallback, disconnectCallback);
+    // Or using await with promises
+    await ble.withPromises.l2cap.open(device_id, { psm: psm, secureChannel: true }, disconnectCallback);
+
+### Description
+
+An L2CAP channel is a duplex byte stream interface (similar to a network socket) that can be used for much more efficient binary data transfer. This is used in some streaming applications, such as the Bluetooth Object Transfer Service.
+
+The PSM (protocol/service multiplexer) is specified by the peripheral when it opens the channel. Some channels have predefined identifiers controlled by [Bluetooth organisation](https://www.bluetooth.com/specifications/assigned-numbers/logical-link-control/). Apple has also outlined a [generic design](https://developer.apple.com/documentation/corebluetooth/cbuuidl2cappsmcharacteristicstring) for PSM exchange. To advertise an L2CAP channel on a specific service, a characteristic with the UUID "ABDD3056-28FA-441D-A470-55A75A52553A" is added to that service, and updated by the peripheral when the L2CAP channel is opened.
+
+### Parameters
+
+-   **device_id**: UUID or MAC address of the peripheral
+-   **psm** or **options**: Protocol/service multiplexer, specified by the peripheral when the channel was opened. Can be an object which includes a `psm` key, with an optional `secureChannel` boolean setting to control whether the channel is encrypted or not (Android-only)
+-   **connectCallback**: Connect callback function, invoked when an L2CAP connection is successfully opened
+-   **disconnectCallback**: Disconnect callback function, invoked when the L2CAP stream closes or an error occurs.
+
+### Supported Platforms
+
+-   iOS
+-   Android (>= 10)
+
+## l2cap.close
+
+Close an L2CAP channel.
+
+    ble.l2cap.close(device_id, psm, success, failure);
+    // Or using await with promises
+    await ble.withPromises.l2cap.close(device_id, psm);
+
+### Description
+
+Closes an open L2CAP channel with the selected device. All pending reads and writes are aborted.
+
+### Parameters
+
+-   **device_id**: UUID or MAC address of the peripheral
+-   **psm**: Protocol/service multiplexer, specified by the peripheral when the channel was opened
+-   **success**: Success callback function that is invoked when the stream is closed successfully. [optional]
+-   **failure**: Error callback function, invoked when error occurs. [optional]
+
+### Supported Platforms
+
+-   iOS
+-   Android (>= 10)
+
+## l2cap.receiveData
+
+Receive data from an L2CAP channel.
+
+    ble.l2cap.receiveData(device_id, psm, dataCallback);
+
+### Description
+
+Sets the function to be called whenever bytes are received on the L2CAP channel. This function will be used as long as the L2CAP connection remains open.
+
+### Parameters
+
+-   **device_id**: UUID or MAC address of the peripheral
+-   **psm**: Protocol/service multiplexer, specified by the peripheral when the channel was opened
+-   **dataCallback**: Data processing function that is invoked when bytes are received from the peripheral
+
+### Supported Platforms
+
+-   iOS
+-   Android (>= 10)
+
+## l2cap.write
+
+Write data to an L2CAP channel.
+
+    ble.l2cap.write(device_id, psm, data, success, failure);
+    // Or using await with promises
+    await ble.withPromises.l2cap.write(device_id, psm, data);
+
+### Description
+
+Writes all data to an open L2CAP channel. If the data exceeds the available space in the transmit buffer, the data will be automatically sent in chunks as space becomes available. The success callback is called only once after all the supplied bytes have been written to the transmit stream.
+
+### Parameters
+
+-   **device_id**: UUID or MAC address of the peripheral
+-   **psm**: Protocol/service multiplexer, specified by the peripheral when the channel was opened
+-   **data**: Data to write to the stream
+-   **success**: Success callback function that is invoked after all bytes have been written to the stream [optional]
+-   **failure**: Error callback function, invoked when error occurs [optional]
+
+### Supported Platforms
+
+-   iOS
+-   Android (>= 10)
 
 # Peripheral Data
 
@@ -1162,6 +1337,27 @@ Change the start page in `config.xml`
 Run the app on your phone
 
     cordova run android --device
+
+# Release process
+
+## Pre-release
+
+1.  `npm version prepatch --preid=alpha`
+2.  Align `plugin.xml` version with npm version
+3.  `npm publish --tag alpha --registry=https://registry.npmjs.org`
+
+## Release
+
+1.  `npm version patch`
+2.  Align `plugin.xml` version with npm version
+3.  Update release notes
+4.  `npm publish --registry=https://registry.npmjs.org`
+
+## Release (lean)
+
+1.  `git merge master`
+2.  Align `package.json` and `plugin.xml` versions
+3.  `npm publish --tag lean --registry=https://registry.npmjs.org`
 
 # Nordic DFU
 
