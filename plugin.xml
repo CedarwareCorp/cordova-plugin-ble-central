@@ -102,6 +102,13 @@
         </js-module>
     </platform>
 
+    <platform name="electron">
+        <js-module src="src/electron/BLECentralPlugin.js" name="BLECentralPlugin">
+            <merges target="ble" />
+        </js-module>
+        <hook type="after_prepare" src="hooks/electron_modify_main_after_prepare.js"/>
+    </platform>
+
     <platform name="wp8">
         <config-file target="config.xml" parent="/*">
             <feature name="BLE">
